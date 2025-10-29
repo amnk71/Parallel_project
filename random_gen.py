@@ -1,38 +1,37 @@
 # random_generator.py
-# Generates an array (list) of 20 random integers and writes them to input.txt.
-# You can reuse this function in Sequential, MPI, or multiprocessing programs.
+# Generates three input files with random integers of different ranges.
 
 import random
 import time
 
 def generate_random_integers(n, min_val, max_val):
     """Generate a list of n random integers between min_val and max_val."""
-    # Seed the random number generator with the current time
     random.seed(time.time())
+    return [random.randint(min_val, max_val) for _ in range(n)]
 
-    # Create the random integer list
-    arr = [random.randint(min_val, max_val) for _ in range(n)]
-    return arr
-
+def save_to_file(filename, arr):
+    """Save a list of integers to a text file."""
+    with open(filename, "w") as f:
+        f.write(" ".join(str(x) for x in arr))
+    print(f"✅ Saved {len(arr)} integers to {filename}")
 
 def main():
-    # Number of integers to generate
-    n = 20
+    # You can change 'n' if you want more or fewer numbers in each set.
+    n_small = 20
+    n_medium = 1000
+    n_large = 100000
 
-    # Value range for this dataset
-    min_val = -500
-    max_val = 500
+    datasets = [
+        ("input_small.txt", n_small, -500, 500),
+        ("input_medium.txt", n_medium, -5000, 5000),
+        ("input_large.txt", n_large, -5000000, 5000000)
+    ]
 
-    # Generate random numbers
-    arr = generate_random_integers(n, min_val, max_val)
+    for filename, n, min_val, max_val in datasets:
+        arr = generate_random_integers(n, min_val, max_val)
+        save_to_file(filename, arr)
 
-    # Overwrite the same file each time for new random input
-    with open("input.txt", "w") as f:
-        f.write(" ".join(str(x) for x in arr))
-
-    print(f"Generated {n} random integers and saved to input.txt.")
-    print(" ".join(str(x) for x in arr))
-
+    print("\n🎯 All input files generated successfully!")
 
 if __name__ == "__main__":
     main()
