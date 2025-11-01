@@ -1,4 +1,4 @@
-# Parallel_project
+# Parallel_Project
 ## Random Integer Dataset Generator
 
 ### 🧩 Overview
