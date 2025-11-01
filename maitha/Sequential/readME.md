@@ -15,7 +15,7 @@ Because regular radix sort only works with **non-negative** numbers, the code au
 ## 📂 Files Included
 
 * `radix_sort_sequential.c` → main program (includes timing, printing, and counting sort).
-* `input_small.txt` → must contain **exactly 20 integers** (separated by spaces or newlines).
+* `input_small.txt`, `input_medium.txt`, `input_large.txt` → must contain **exactly 20 integers** (separated by spaces or newlines).
 
 ---
 
