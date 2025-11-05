@@ -1,223 +1,203 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <pthread.h>
 #include <time.h>
+#include <string.h>
+#include <errno.h>
+#include <limits.h>
+#include <math.h>
 
-#define NUM_BUCKETS 256
-#define NUM_PASSES  4  // 4 bytes (32-bit integers)
+#define THREADS 4
+#define DIGITS 10
 
-// ----------------------------------------------
-// Thread context structure
-// ----------------------------------------------
 typedef struct {
-    uint32_t *in;
-    uint32_t *out;
-    size_t n;
-    int T;
-    int tid;
-    size_t lo, hi;
-} ThreadCtx;
+    int *arr;
+    int *output;
+    int start;
+    int end;
+    int exp;
+    int local_count[DIGITS];
+} ThreadData;
 
-// Shared data across threads
-static pthread_barrier_t barrier;
-static size_t (*local_count)[NUM_BUCKETS] = NULL; 
-static size_t global_count[NUM_BUCKETS];
-static size_t global_prefix[NUM_BUCKETS];
-static size_t (*thread_offset)[NUM_BUCKETS] = NULL;
+// Shared globals
+pthread_mutex_t lock;
+pthread_cond_t cond;
+int thread_done = 0;
+int total_threads;
 
-// ----------------------------------------------
-// Utility Functions
-// ----------------------------------------------
-static void compute_range(size_t n, int T, int tid, size_t *lo, size_t *hi) {
-    size_t base = n / T, rem = n % T;
-    *lo = tid * base + (tid < rem ? tid : rem);
-    *hi = *lo + base + (tid < rem ? 1 : 0);
+// Barrier (simple version)
+void barrier_init(int n) {
+    pthread_mutex_init(&lock, NULL);
+    pthread_cond_init(&cond, NULL);
+    total_threads = n;
+}
+void barrier_wait() {
+    pthread_mutex_lock(&lock);
+    thread_done++;
+    if (thread_done >= total_threads) {
+        thread_done = 0;
+        pthread_cond_broadcast(&cond);
+    } else {
+        pthread_cond_wait(&cond, &lock);
+    }
+    pthread_mutex_unlock(&lock);
 }
 
-// Simple check for debugging small n (e.g., n=20)
-static int is_sorted(uint32_t *arr, size_t n) {
-    for (size_t i = 1; i < n; i++)
-        if (arr[i - 1] > arr[i]) return 0;
-    return 1;
-}
+// Thread worker: parallel counting for one digit pass
+void *worker(void *arg) {
+    ThreadData *data = (ThreadData *)arg;
+    for (int i = 0; i < DIGITS; i++) data->local_count[i] = 0;
 
-// ----------------------------------------------
-// Thread Worker Function
-// ----------------------------------------------
-static void *worker(void *arg) {
-    ThreadCtx *ctx = (ThreadCtx*)arg;
-    uint32_t *in  = ctx->in;
-    uint32_t *out = ctx->out;
-    const int T   = ctx->T;
-    const int tid = ctx->tid;
-    const size_t lo = ctx->lo, hi = ctx->hi;
-
-    for (int pass = 0; pass < NUM_PASSES; ++pass) {
-        int shift = pass * 8;
-
-        // 1️⃣ Local counting phase
-        for (int b = 0; b < NUM_BUCKETS; ++b)
-            local_count[tid][b] = 0;
-
-        for (size_t i = lo; i < hi; ++i) {
-            uint32_t x = in[i];
-            int d = (x >> shift) & 0xFF;
-            local_count[tid][d]++;
-        }
-
-        pthread_barrier_wait(&barrier);
-
-        // 2️⃣ Combine counts (only one thread)
-        if (tid == 0) {
-            for (int b = 0; b < NUM_BUCKETS; ++b) {
-                size_t s = 0;
-                for (int t = 0; t < T; ++t)
-                    s += local_count[t][b];
-                global_count[b] = s;
-            }
-
-            // 3️⃣ Compute prefix sums
-            size_t run = 0;
-            for (int b = 0; b < NUM_BUCKETS; ++b) {
-                global_prefix[b] = run;
-                run += global_count[b];
-            }
-
-            // Compute per-thread offsets (race-free write zones)
-            for (int b = 0; b < NUM_BUCKETS; ++b) {
-                size_t base = global_prefix[b];
-                for (int t = 0; t < T; ++t) {
-                    thread_offset[t][b] = base;
-                    base += local_count[t][b];
-                }
-            }
-        }
-
-        pthread_barrier_wait(&barrier);
-
-        // 4️⃣ Scatter phase (stable write)
-        for (size_t i = lo; i < hi; ++i) {
-            uint32_t x = in[i];
-            int d = (x >> shift) & 0xFF;
-            size_t pos = thread_offset[tid][d]++;
-            out[pos] = x;
-        }
-
-        pthread_barrier_wait(&barrier);
-
-        // 5️⃣ Swap arrays (once per pass)
-        if (tid == 0) {
-            uint32_t *tmp = ctx->in;
-            ctx->in = ctx->out;
-            ctx->out = tmp;
-        }
-
-        pthread_barrier_wait(&barrier);
-        in  = ctx->in;
-        out = ctx->out;
+    for (int i = data->start; i < data->end; i++) {
+        int digit = (data->arr[i] / data->exp) % 10;
+        data->local_count[digit]++;
     }
 
+    barrier_wait(); // sync after counting
     return NULL;
 }
 
-// ----------------------------------------------
-// Main Function
-// ----------------------------------------------
-int main(int argc, char **argv) {
-    printf("\n--- Parallel Radix Sort (pThreads) ---\n");
+// Counting sort by digit (parallel)
+void parallel_counting_sort(int *arr, int n, int exp) {
+    pthread_t threads[THREADS];
+    ThreadData tdata[THREADS];
+    int chunk = n / THREADS;
+    int output[n];
 
-    // 0️⃣ Auto-generate new random data before sorting
-    printf("Generating new random input using Python script...\n");
-    int ret = system("python3 random_generator.py");
-    if (ret != 0) {
-        fprintf(stderr, "Error: Failed to run random_generator.py\n");
-        return 1;
+    // 1. Parallel counting
+    barrier_init(THREADS);
+    for (int t = 0; t < THREADS; t++) {
+        tdata[t].arr = arr;
+        tdata[t].exp = exp;
+        tdata[t].start = t * chunk;
+        tdata[t].end = (t == THREADS - 1) ? n : (t + 1) * chunk;
+        pthread_create(&threads[t], NULL, worker, &tdata[t]);
     }
-
-    // 1️⃣ File names (hardcoded for project convenience)
-    char *input_file = "input.txt";
-    char *output_file = "sorted_pthreads.txt";
-    int T = 4; // Default threads (can adjust for testing)
-
-    // 2️⃣ Read input data
-    FILE *fp = fopen(input_file, "r");
-    if (!fp) { perror("input.txt"); exit(1); }
-
-    size_t n_alloc = 100000; // enough for 20 or more
-    uint32_t *A = malloc(n_alloc * sizeof(uint32_t));
-    uint32_t *B = malloc(n_alloc * sizeof(uint32_t));
-    if (!A || !B) { perror("malloc"); exit(1); }
-
-    int val;
-    size_t n = 0;
-    while (fscanf(fp, "%d", &val) == 1) {
-        A[n++] = (uint32_t)(val + 2147483648u); // handle negatives safely
-    }
-    fclose(fp);
-
-    printf("Loaded %zu integers from %s\n", n, input_file);
-
-    // 3️⃣ Allocate shared structures
-    local_count   = calloc(T, sizeof(*local_count));
-    thread_offset = calloc(T, sizeof(*thread_offset));
-    if (!local_count || !thread_offset) { perror("calloc"); exit(1); }
-
-    pthread_barrier_init(&barrier, NULL, T);
-    pthread_t *threads = malloc(T * sizeof(pthread_t));
-    ThreadCtx *ctx = malloc(T * sizeof(ThreadCtx));
-
-    // 4️⃣ Create threads
-    for (int t = 0; t < T; ++t) {
-        compute_range(n, T, t, &ctx[t].lo, &ctx[t].hi);
-        ctx[t].in = A;
-        ctx[t].out = B;
-        ctx[t].n = n;
-        ctx[t].T = T;
-        ctx[t].tid = t;
-        pthread_create(&threads[t], NULL, worker, &ctx[t]);
-    }
-
-    // 5️⃣ Join threads
-    for (int t = 0; t < T; ++t)
+    for (int t = 0; t < THREADS; t++)
         pthread_join(threads[t], NULL);
 
-    uint32_t *sorted = (NUM_PASSES % 2 == 0) ? A : B;
+    // 2. Merge counts
+    int global_count[DIGITS] = {0};
+    for (int t = 0; t < THREADS; t++)
+        for (int d = 0; d < DIGITS; d++)
+            global_count[d] += tdata[t].local_count[d];
 
-    // 6️⃣ Write output
-    FILE *out = fopen(output_file, "w");
-    if (!out) { perror("output"); exit(1); }
-    for (size_t i = 0; i < n; i++) {
-        int32_t val_signed = (int32_t)(sorted[i] - 2147483648u);
-        fprintf(out, "%d ", val_signed);
-    }
-    fclose(out);
+    for (int d = 1; d < DIGITS; d++)
+        global_count[d] += global_count[d - 1];
 
-    // 7️⃣ Verification (optional for 20 elements)
-    if (n <= 20) {
-        printf("\nUnsorted Input:\n");
-        system("cat input.txt");
-        printf("\n\nSorted Output:\n");
-        system("cat sorted_pthreads.txt");
+    // 3. Stable placement
+    for (int i = n - 1; i >= 0; i--) {
+        int digit = (arr[i] / exp) % 10;
+        output[--global_count[digit]] = arr[i];
     }
 
-    if (is_sorted(sorted, n))
-        printf("\n✅ Array sorted successfully using %d threads.\n\n", T);
-    else
-        printf("\n❌ Sorting failed.\n");
+    // 4. Copy back
+    for (int i = 0; i < n; i++)
+        arr[i] = output[i];
+}
 
-    // TODO (later):
-    // - Add timing with clock_gettime() for performance graphs
-    // - Scale up n and test for 1000, 10000, 1M inputs
+// Sequential radix logic (shared)
+void radix_sort_parallel(int *arr, int n) {
+    int min = INT_MAX;
+    for (int i = 0; i < n; i++)
+        if (arr[i] < min) min = arr[i];
+    if (min < 0)
+        for (int i = 0; i < n; i++) arr[i] -= min;
 
-    // 8️⃣ Cleanup
-    pthread_barrier_destroy(&barrier);
-    free(local_count);
-    free(thread_offset);
-    free(threads);
-    free(ctx);
-    free(A);
-    free(B);
+    int max = arr[0];
+    for (int i = 1; i < n; i++)
+        if (arr[i] > max) max = arr[i];
 
+    for (int exp = 1; max / exp > 0; exp *= 10)
+        parallel_counting_sort(arr, n, exp);
+
+    if (min < 0)
+        for (int i = 0; i < n; i++) arr[i] += min;
+}
+
+// File loader
+int *read_input(const char *filename, int *n) {
+    FILE *f = fopen(filename, "r");
+    if (!f) {
+        perror("open");
+        return NULL;
+    }
+    int *arr = malloc(1000 * sizeof(int));
+    int count = 0;
+    while (fscanf(f, "%d", &arr[count]) == 1) count++;
+    fclose(f);
+    *n = count;
+    return arr;
+}
+
+int main() {
+    const char *inputs[] = {"input_small.txt", "input_medium.txt", "input_large.txt"};
+    const int num_files = 3;
+
+    FILE *log = fopen("performance_results_pthread.txt", "a"); // append mode
+
+    // Add timestamp header
+    time_t now = time(NULL);
+    char *dt = ctime(&now);
+    if (dt[strlen(dt)-1] == '\n') dt[strlen(dt)-1] = '\0';
+    fprintf(log, "============================================\n");
+    fprintf(log, "Run Timestamp: %s\n", dt);
+    fprintf(log, "Threads used: %d\n", THREADS);
+    fprintf(log, "============================================\n\n");
+
+
+    for (int f = 0; f < num_files; f++) {
+        const char *file = inputs[f];
+        printf("\n[Dataset: %s]\n", file);
+
+        // Run sequential reference
+        char cmd[128];
+        snprintf(cmd, sizeof(cmd), "./radix_seq %s > tmp.txt", file);
+        system(cmd);
+
+        double seq_time = 0.0;
+        FILE *tmp = fopen("tmp.txt", "r");
+        if (tmp) {
+            char line[256];
+            while (fgets(line, sizeof(line), tmp))
+                if (sscanf(line, "Sorting Time: %lf", &seq_time) == 1)
+                    break;
+            fclose(tmp);
+        }
+
+        int n;
+        int *arr = read_input(file, &n);
+        if (!arr) continue;
+
+        struct timespec t1, t2;
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        radix_sort_parallel(arr, n);
+        clock_gettime(CLOCK_MONOTONIC, &t2);
+        double par_time = (t2.tv_sec - t1.tv_sec) + (t2.tv_nsec - t1.tv_nsec)/1e9;
+
+        printf("Sorted Output:\n");
+        for (int i = 0; i < n; i++)
+            printf("%d ", arr[i]);
+        printf("\n");   
+
+        double S = seq_time / par_time;
+        double E = S / THREADS;
+        double alpha = (S - 1) / (THREADS - 1);
+
+        fprintf(log, "==== Dataset: %s ====\n", file);
+        fprintf(log, "Sequential time: %.6f s\n", seq_time);
+        fprintf(log, "Parallel time:   %.6f s\n", par_time);
+        fprintf(log, "Speedup (S):     %.2fx\n", S);
+        fprintf(log, "Efficiency (E):  %.2f\n", E);
+        fprintf(log, "Amdahl’s α:      %.2f\n", alpha);
+        fprintf(log, "--------------------------------------------\n\n");
+
+
+        free(arr);
+        remove("tmp.txt");
+    }
+
+    fclose(log);
+    printf("\nFull report saved to performance_results_pthread.txt\n");
     return 0;
 }
