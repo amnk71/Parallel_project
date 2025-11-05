@@ -13,3 +13,9 @@
 
 what ill do:
 -run it on windows and check the new times
+
+
+
+
+- input size can we increase
+  
