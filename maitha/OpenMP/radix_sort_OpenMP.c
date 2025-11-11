@@ -1,1 +1,157 @@
+// radix_sort_parallel.c
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <time.h>
+#include <omp.h>                    //Include OpenMP header.
+#define MAX_NUMS 100000            //Maximum number of integers the program can store in the static array.
+
+// ---------- Function to print an array ----------
+void print_array(const char *label, int *arr, int n) {         //This Function is used to print a label followed by all array elements.
+    printf("%s[", label);                                       //Printing the provided label string (e.g., "Unsorted: ").
+    for (int i = 0; i < n; i++) {                              //Iterating over each element from index 0 to 19.
+        if (i > 0)                                             //Printing commas from second element onward.
+            printf(", ");
+        printf("%d", arr[i]);                                  //Printing the current integer element.
+    }
+    printf("]\n");
+}
+
+
+// ---------- Counting sort ----------
+void counting_sort(int *arr, int n, int exp) {                //Sort array elements based on the digit represented by exp (1, 10, 100...).
+    int output[n];                                            //Creating a temporary array to store the sorted result for this digit.
+    int count[10] = {0};                                      //Array to count occurrences of each digit (0–9) initialized to zero.
+
+
+    //Parallel local histograms for counting digits
+    int num_threads;                                                     //Declaring a variable that store the number of threads.
+
+    #pragma omp parallel                                                  //Starting a parallel region where multiple threads run this block.
+    {
+        int local_count[10] = {0};                                       //Each thread has its own digit counter array (0–9), initialized to 0.
+
+        #pragma omp for nowait                                           //Splitting this loop across threads; no implicit barrier at the end.
+        for (int i = 0; i < n; i++) {                                    //Each thread processes a subset of the array elements.
+            int digit = (arr[i] / exp) % 10;                             //Getting the digit at the current place value (exp) from arr[i].
+            local_count[digit]++;                                        //Increasing this thread’s count for that digit.
+        }
+
+        //Merging local histograms into the global count safely.
+        #pragma omp critical                                             //Only one thread at a time can execute this block.
+        {
+            for (int d = 0; d < 10; d++) {                               //It go through all digit positions from 0 to 9.
+                count[d] += local_count[d];                              //Adding this thread’s local counts into the shared global count array.
+            }
+        }
+    }
+
+
+     //2)Converting counts into 1-based ending positions for each digit.
+    for (int i = 1; i < 10; i++) {                            //Looping through the count array starting from index 1 to 9.
+            int prev = count[i - 1];                          //Storing the cumulative count of all digits less than the current digit i.
+            int curr = count[i];                             //Storing the current count of the digit i.
+            count[i] = curr + prev;                          //Updating count[i] to be the total number of elements with a digit value <= i.
+        }
+
+    //3)Placing items into output[] from right to left using those positions.
+    for (int i = n - 1; i >= 0; i--) {                        //Traversing the array backward to maintain sorting stability.
+        int d = (arr[i] / exp) % 10;                          //Extracting the current digit again.
+        int pos = count[d] - 1;                               //Converting last 1-based position to 0-based index.
+        output[pos] = arr[i];                                  //Placing the element into that exact position in the output array for this digit.
+        count[d]--;                                            //Decreasing the count so the next same digit element goes to the left.
+    }
+
+
+    //4)Copying the partially sorted result back to the main array arr[].
+    #pragma omp parallel for                                  //Splitting the loop among threads for faster copying.
+    for (int i = 0; i < n; i++)                               //Copying the sorted elements from output[] back to arr[].
+        arr[i] = output[i];                                   //Updating the original array with partially sorted result.
+
+}
+
+
+// ---------- Main ----------
+int main(int argc, char *argv[]) {
+  // --- Check that exactly one argument (input file name) is provided ---
+    if (argc != 2) {                                           //If user didn’t pass exactly one extra argument notify them the correct format.
+        printf("Usage: %s <input.txt>\n", argv[0]);
+        return 1;                                              //Exiting with error.
+    }
+
+    // --- Open the input file ---
+    FILE *f = fopen(argv[1], "r");                             //Trying to open the file given as the first argument in read mode.
+    if (!f) {                                                  //If fopen failed print the system error message.
+        perror("fopen");
+        return 1;                                              //Exiting with error.
+    }
+
+    // --- Reading the array from file ---
+    int arr[MAX_NUMS];                                   //Declaring a static array to hold all integers read from the file.
+    int n = 0;                                          //Initializing a counter that keeps track of how many integers have been successfully read.
+    int x;                                              //Declaring a temporary variable used to store each integer read from the file.
+    int min = INT_MAX;                                  //Initializing a variable to track the smallest value seen so far, initialized to the largest int.
+
+    while (fscanf(f, "%d", &x) == 1 && n < MAX_NUMS) {    //Keep reading integers from the file while read is successful and array is not full.
+        arr[n] = x;                                      //Storing the new integer at the current index n.
+        n++;                                             //Moving n to the next position for the next read.
+        if (x < min)
+            min = x;                            //If this value is smaller than the current minimum, update min.
+    }
+
+    if (n == 0) {                                        //If no integers were read (n stayed 0)...
+        fprintf(stderr, "Error: no integers found.\n");   //Print an error message to the standard error stream.
+        fclose(f);                                       //Close the file before exiting.
+        return 1;                                        //Exit the program with an error status.
+    }
+
+    printf("Number of threads: %d\n", omp_get_max_threads());
+
+    print_array("Unsorted:", arr, n);
+
+    // --- Shift negatives (Sequential)---
+        int shift = 0;                                              //Initializing a variable that stores how much we need to add to each number.
+        if (min < 0)                                                //Checking if the smallest number in the array is negative.
+            shift = -min;                                           //If yes, make shift equal to its positive value (so negatives become zero or more).
+
+        if (shift > 0) {                                            //If shifting is needed (there were negative numbers).
+            for (int i = 0; i < n; i++)                             //Looping through every element in the array.
+                arr[i] = arr[i] + shift;                            //Adding 'shift' to each element to make all numbers non negative
+        }
+
+
+    // --- Find maximum (Sequential) ---
+    int max = arr[0];                                           //Assuming the first element is the largest number.
+    for (int i = 1; i < n; i++)                                 //Looping through the rest of the array from index 1 to 19.
+        if (arr[i] > max)                                       //If the current number is larger than the current 'max'.
+            max = arr[i];                                       //Updating 'max' to store this new larger number.
+
+    // --- Start timing ---
+    double start = omp_get_wtime();
+
+    // --- Radix sort (with partial outputs) ---
+    for (int exp = 1; max / exp > 0; exp *= 10) {               //Looping over each digit place: 1 (ones), 10 (tens), 100 (hundreds),etc.
+        counting_sort(arr, n, exp);                             //Sorting the array based on the current digit using counting sort.
+
+        printf("\n After pass for exp = %d:\n", exp);           //Printing which digit place we just sorted.
+        print_array("", arr, n);                                //Printing the array after this pass.
+    }
+
+    // --- End timing ---
+    double end = omp_get_wtime();
+    double time_taken = end - start;                            //Calculating how long the sorting took in seconds.
+
+    // --- Shift back (restore negatives) ---
+    if (shift != 0)                                             //If shift is not zero, meaning we actually shifted earlier
+        for (int i = 0; i < n; i++)                             //Looping through every element in the array.
+            arr[i] -= shift;                                    //Subtracting the same shift value to return numbers to their original range.
+
+    // --- Final output ---
+    print_array("\nSorted:", arr, n);
+    printf("\nSorting Time: %.6f seconds\n", time_taken);
+
+
+    return 0;
+}
 
