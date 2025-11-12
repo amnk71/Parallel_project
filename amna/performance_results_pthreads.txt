@@ -221,4 +221,199 @@ Speedup (S):     1.49x
 Efficiency (E):  0.75
 Amdahl’s α:      0.49
 --------------------------------------------
+============================================
+Run Timestamp: Wed Nov 12 11:44:01 2025
+Threads used: 2
+Adaptive threshold: n <= 2000 uses sequential path
+============================================
+
+==== Dataset: input_small.txt ====
+N: 20
+Sequential time: 0.000001 s
+Parallel time:   0.000000 s
+Speedup (S):     0.00x
+Efficiency (E):  0.00
+Amdahl’s α:      -1.00
+--------------------------------------------
+
+==== Dataset: input_medium.txt ====
+N: 20
+Sequential time: 0.000000 s
+Parallel time:   0.000001 s
+Speedup (S):     0.00x
+Efficiency (E):  0.00
+Amdahl’s α:      -1.00
+--------------------------------------------
+
+==== Dataset: input_large.txt ====
+N: 20
+Sequential time: 0.000001 s
+Parallel time:   0.000001 s
+Speedup (S):     1.00x
+Efficiency (E):  0.50
+Amdahl’s α:      0.00
+--------------------------------------------
+
+==== Dataset: input_small_100.txt ====
+N: 100
+Sequential time: 0.000001 s
+Parallel time:   0.000002 s
+Speedup (S):     0.50x
+Efficiency (E):  0.25
+Amdahl’s α:      -0.50
+--------------------------------------------
+
+==== Dataset: input_small_1000.txt ====
+N: 1000
+Sequential time: 0.000009 s
+Parallel time:   0.000008 s
+Speedup (S):     1.12x
+Efficiency (E):  0.56
+Amdahl’s α:      0.12
+--------------------------------------------
+
+==== Dataset: input_small_10000.txt ====
+N: 10000
+Sequential time: 0.000144 s
+Parallel time:   0.000284 s
+Speedup (S):     0.51x
+Efficiency (E):  0.25
+Amdahl’s α:      -0.49
+--------------------------------------------
+
+==== Dataset: input_small_100000.txt ====
+N: 100000
+Sequential time: 0.001254 s
+Parallel time:   0.001181 s
+Speedup (S):     1.06x
+Efficiency (E):  0.53
+Amdahl’s α:      0.06
+--------------------------------------------
+
+==== Dataset: input_small_1000000.txt ====
+N: 1000000
+Sequential time: 0.009807 s
+Parallel time:   0.007766 s
+Speedup (S):     1.26x
+Efficiency (E):  0.63
+Amdahl’s α:      0.26
+--------------------------------------------
+
+==== Dataset: input_small_10000000.txt ====
+N: 10000000
+Sequential time: 0.108126 s
+Parallel time:   0.084341 s
+Speedup (S):     1.28x
+Efficiency (E):  0.64
+Amdahl’s α:      0.28
+--------------------------------------------
+
+==== Dataset: input_medium_100.txt ====
+N: 100
+Sequential time: 0.000002 s
+Parallel time:   0.000002 s
+Speedup (S):     1.00x
+Efficiency (E):  0.50
+Amdahl’s α:      0.00
+--------------------------------------------
+
+==== Dataset: input_medium_1000.txt ====
+N: 1000
+Sequential time: 0.000007 s
+Parallel time:   0.000007 s
+Speedup (S):     1.00x
+Efficiency (E):  0.50
+Amdahl’s α:      0.00
+--------------------------------------------
+
+==== Dataset: input_medium_10000.txt ====
+N: 10000
+Sequential time: 0.000077 s
+Parallel time:   0.000157 s
+Speedup (S):     0.49x
+Efficiency (E):  0.25
+Amdahl’s α:      -0.51
+--------------------------------------------
+
+==== Dataset: input_medium_100000.txt ====
+N: 100000
+Sequential time: 0.001188 s
+Parallel time:   0.001006 s
+Speedup (S):     1.18x
+Efficiency (E):  0.59
+Amdahl’s α:      0.18
+--------------------------------------------
+
+==== Dataset: input_medium_1000000.txt ====
+N: 1000000
+Sequential time: 0.011400 s
+Parallel time:   0.009032 s
+Speedup (S):     1.26x
+Efficiency (E):  0.63
+Amdahl’s α:      0.26
+--------------------------------------------
+
+==== Dataset: input_medium_10000000.txt ====
+N: 10000000
+Sequential time: 0.117562 s
+Parallel time:   0.096133 s
+Speedup (S):     1.22x
+Efficiency (E):  0.61
+Amdahl’s α:      0.22
+--------------------------------------------
+
+==== Dataset: input_large_100.txt ====
+N: 100
+Sequential time: 0.000002 s
+Parallel time:   0.000002 s
+Speedup (S):     1.00x
+Efficiency (E):  0.50
+Amdahl’s α:      0.00
+--------------------------------------------
+
+==== Dataset: input_large_1000.txt ====
+N: 1000
+Sequential time: 0.000013 s
+Parallel time:   0.000012 s
+Speedup (S):     1.08x
+Efficiency (E):  0.54
+Amdahl’s α:      0.08
+--------------------------------------------
+
+==== Dataset: input_large_10000.txt ====
+N: 10000
+Sequential time: 0.000131 s
+Parallel time:   0.000331 s
+Speedup (S):     0.40x
+Efficiency (E):  0.20
+Amdahl’s α:      -0.60
+--------------------------------------------
+
+==== Dataset: input_large_100000.txt ====
+N: 100000
+Sequential time: 0.001369 s
+Parallel time:   0.001225 s
+Speedup (S):     1.12x
+Efficiency (E):  0.56
+Amdahl’s α:      0.12
+--------------------------------------------
+
+==== Dataset: input_large_1000000.txt ====
+N: 1000000
+Sequential time: 0.013085 s
+Parallel time:   0.010186 s
+Speedup (S):     1.28x
+Efficiency (E):  0.64
+Amdahl’s α:      0.28
+--------------------------------------------
+
+==== Dataset: input_large_10000000.txt ====
+N: 10000000
+Sequential time: 0.176712 s
+Parallel time:   0.136271 s
+Speedup (S):     1.30x
+Efficiency (E):  0.65
+Amdahl’s α:      0.30
+--------------------------------------------
+
 
