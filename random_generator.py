@@ -43,7 +43,7 @@ def save_to_file(filename, arr):
     with open(filepath, "w") as f:
         f.write(" ".join(str(x) for x in arr))
 
-    print(f"✅ Saved {len(arr)} integers to {filepath}")
+    print(f"Saved {len(arr)} integers to {filepath}")
 
 
 def main():
@@ -57,7 +57,7 @@ def main():
         ("input_large.txt",  20, -5_000_000, 5_000_000),
     ]
 
-    print("📌 Generating fixed-range datasets...")
+    print("Generating fixed-range datasets...")
     for filename, n, mn, mx in datasets:
         arr = generate_random_integers(n, mn, mx)
         save_to_file(filename, arr)
@@ -65,13 +65,13 @@ def main():
     # MIXED DISTRIBUTION DATASETS
     sizes = [10_000, 100_000, 1_000_000]
 
-    print("\n📌 Generating mixed-distribution datasets...")
+    print("\nGenerating mixed-distribution datasets...")
     for n in sizes:
         filename = f"input_mixed_{n}.txt"
         arr = generate_mixed_integers(n)
         save_to_file(filename, arr)
 
-    print("\n🎯 All datasets generated successfully!")
+    print("\nAll datasets generated successfully!")
 
 
 if __name__ == "__main__":
