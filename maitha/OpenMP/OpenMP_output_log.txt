@@ -27,9 +27,9 @@ Sorted Array:
 
 ===== Performance Profiling =====
 Sequential Time (T_seq): 0.011000 s
-Parallel Time   (T_par): 0.013000 s
-Speedup         (S): 0.8462
-Efficiency      (E): 0.0529
+Parallel Time   (T_par): 0.034000 s
+Speedup         (S): 0.3235
+Efficiency      (E): 0.0202
 =============================================
 
 =============================================
@@ -44,9 +44,9 @@ Sorted Array:
 
 ===== Performance Profiling =====
 Sequential Time (T_seq): 0.014000 s
-Parallel Time   (T_par): 0.024000 s
-Speedup         (S): 0.5833
-Efficiency      (E): 0.0365
+Parallel Time   (T_par): 0.034000 s
+Speedup         (S): 0.4118
+Efficiency      (E): 0.0257
 =============================================
 
 =============================================
@@ -60,9 +60,9 @@ Unsorted array is too large to print.
 
 ===== Performance Profiling =====
 Sequential Time (T_seq): 0.001000 s
-Parallel Time   (T_par): 0.004000 s
-Speedup         (S): 0.2500
-Efficiency      (E): 0.0156
+Parallel Time   (T_par): 0.005000 s
+Speedup         (S): 0.2000
+Efficiency      (E): 0.0125
 =============================================
 
 =============================================
@@ -76,10 +76,11 @@ Unsorted array is too large to print.
 
 ===== Performance Profiling =====
 Sequential Time (T_seq): 0.020000 s
-Parallel Time   (T_par): 0.022000 s
-Speedup         (S): 0.9091
-Efficiency      (E): 0.0568
+Parallel Time   (T_par): 0.017000 s
+Speedup         (S): 1.1765
+Efficiency      (E): 0.0735
 =============================================
+
 
 =============================================
 Run for input file: input_mixed_1000000.txt
@@ -92,8 +93,8 @@ Unsorted array is too large to print.
 
 ===== Performance Profiling =====
 Sequential Time (T_seq): 0.109000 s
-Parallel Time   (T_par): 0.081000 s
-Speedup         (S): 1.3457
-Efficiency      (E): 0.0841
+Parallel Time   (T_par): 0.085000 s
+Speedup         (S): 1.2824
+Efficiency      (E): 0.0801
 =============================================
 
