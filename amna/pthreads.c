@@ -70,10 +70,8 @@ static void *worker(void *arg) { // this fn runs with everytime pthread_create i
         /* Count my slice for this digit */
         int exp = current_exp;// all threads work on the same digit till they all finish
         for (int i = data->start; i < data->end; i++) {
-            // start and end is where that specific thread starts (0) and ends (2) as ex
-            // next thread start where the prev ends+1 so 3-6 as ex
             int digit = (data->arr[i] / exp) % 10; // get the specific digit at curr position
-            data->local_count[digit]++; // specific digit appears local_count[digit] times in this thread slice
+            data->local_count[digit]++;
         }
 
         /* Phase 2: counting complete */
@@ -82,115 +80,39 @@ static void *worker(void *arg) { // this fn runs with everytime pthread_create i
     return NULL;
 }
 
-// Sequential radix helpers (shared)
-static void seq_counting_sort(int *arr, int n, int exp) {
-    int count[DIGITS] = {0}; // like the local_count but for whole array (global)
-    int *out = (int *)malloc((n > 0 ? n : 1) * sizeof(int)); //temp array to hold sorted values
-    if (!out) { perror("malloc"); exit(1); }
-
-    //Let’s say arr = [329, 457, 657, 839, 436] and exp = 1 (ones place).
-    for (int i = 0; i < n; i++) { 
-        int digit = (arr[i] / exp) % 10; //
-        count[digit]++;
-    } 
-    for (int d = 1; d < DIGITS; d++) count[d] += count[d - 1];
-
-    for (int i = n - 1; i >= 0; i--) {
-        int digit = (arr[i] / exp) % 10;
-        out[--count[digit]] = arr[i];
-    }
-    for (int i = 0; i < n; i++) arr[i] = out[i];
-    free(out);
-}
-
-static void sequential_radix_inplace(int *arr, int n) {
-    if (n <= 1) return;
-
-    /* Shift negatives, track max */
-    int min = INT_MAX, mx = INT_MIN;
-    for (int i = 0; i < n; i++) {
-        if (arr[i] < min) min = arr[i];
-        if (arr[i] > mx)  mx  = arr[i];
-    }
-    int shift = 0;
-    if (min < 0) {
-        shift = -min;
-        for (int i = 0; i < n; i++) arr[i] += shift;
-        mx += shift;
-    }
-
-    for (int exp = 1; mx / exp > 0; exp *= 10)
-        seq_counting_sort(arr, n, exp);
-
-    if (shift) {
-        for (int i = 0; i < n; i++) arr[i] -= shift;
-    }
-}
-
-static double time_sequential_radix(const int *src, int n) {
-    if (n <= 1) return 0.0;
-
-    int *arr = (int *)malloc(n * sizeof(int));
-    if (!arr) { perror("malloc"); exit(1); }
-    for (int i = 0; i < n; i++) arr[i] = src[i];
-
-    int min = INT_MAX, mx = INT_MIN;
-    for (int i = 0; i < n; i++) {
-        if (arr[i] < min) min = arr[i];
-        if (arr[i] > mx)  mx  = arr[i];
-    }
-    int shift = 0;
-    if (min < 0) {
-        shift = -min;
-        for (int i = 0; i < n; i++) arr[i] += shift;
-        mx += shift;
-    }
-
-    struct timespec t1, t2;
-    clock_gettime(CLOCK_MONOTONIC, &t1);
-
-    for (int exp = 1; mx / exp > 0; exp *= 10)
-        seq_counting_sort(arr, n, exp);
-
-    clock_gettime(CLOCK_MONOTONIC, &t2);
-    double secs = (t2.tv_sec - t1.tv_sec) + (t2.tv_nsec - t1.tv_nsec) / 1e9;
-
-    free(arr);
-    return secs;
+/* ---------- ADDED: hardcoded sequential times ---------- */
+// uses your given values
+static double get_precomputed_seq_time(const char *filename) {
+    if (strcmp(filename, "input_small.txt") == 0)        return 0.008;
+    if (strcmp(filename, "input_medium.txt") == 0)       return 0.011;
+    if (strcmp(filename, "input_large.txt") == 0)        return 0.014;
+    if (strcmp(filename, "input_mixed_10000.txt") == 0)  return 0.001;
+    if (strcmp(filename, "input_mixed_100000.txt") == 0) return 0.002;
+    if (strcmp(filename, "input_mixed_1000000.txt") == 0)return 0.109;
+    return 0.0; // ADDED: default if not found
 }
 
 /* ---------- Parallel radix (persistent THREADS workers) ---------- */
 static void radix_sort_parallel(int *arr, int n) {
     if (n <= 1) return;
 
-    /* === Adaptive trick: for tiny n, skip threads entirely === */
-    if (n <= ADAPT_THRESHOLD) {
-        sequential_radix_inplace(arr, n);
-        return;
-    }
-
-    /* Reset stop flag for this run (important across multiple datasets) */
     done = 0;
 
-    /* Shift negatives to non-negative */
     int min = INT_MAX;
     for (int i = 0; i < n; i++)
         if (arr[i] < min) min = arr[i];
     if (min < 0)
         for (int i = 0; i < n; i++) arr[i] -= min;
 
-    /* Find maximum */
     int max = (n > 0 ? arr[0] : 0);
     for (int i = 1; i < n; i++)
         if (arr[i] > max) max = arr[i];
 
-    /* Start workers once; barrier participants = THREADS + 1 (main) */
     barrier_init(THREADS + 1);
 
     pthread_t threads[THREADS];
     ThreadData tds[THREADS];
 
-    /* Balanced work partition (base + remainder) */
     int base = n / THREADS;
     int rem  = n % THREADS;
     for (int t = 0; t < THREADS; t++) {
@@ -206,54 +128,44 @@ static void radix_sort_parallel(int *arr, int n) {
         pthread_create(&threads[t], NULL, worker, &tds[t]);
     }
 
-    /* Initial handshake: join workers' first barrier_wait() */
     barrier_wait();
 
     int *output = (int *)malloc(n * sizeof(int));
     if (!output) { perror("malloc"); exit(1); }
 
-    /* Passes: two barriers per pass (start / finish) */
     for (current_exp = 1; max / current_exp > 0; current_exp *= 10) {
-        /* Phase 1: start pass */
+
         barrier_wait();
 
-        /* Phase 2: wait for all workers to finish counting */
         barrier_wait();
 
-        /* Merge all thread-local histograms */
         int global_count[DIGITS] = {0};
-        int total_seen = 0; // ADDED: sanity check accumulator
+        int total_seen = 0;
 
         for (int t = 0; t < THREADS; t++)
             for (int d = 0; d < DIGITS; d++)
                 global_count[d] += tds[t].local_count[d];
 
-        // ADDED: verify the merged histogram equals n (detects bad slices or missed counts)
         for (int d = 0; d < DIGITS; d++) total_seen += global_count[d];
         if (total_seen != n) {
             fprintf(stderr, "ERROR: histogram sum %d != n %d (exp=%d)\n",
                     total_seen, n, current_exp);
-            // Optional: dump slices or per-thread counts here
             exit(1);
         }
 
-        /* Prefix sums */
         for (int d = 1; d < DIGITS; d++)
             global_count[d] += global_count[d - 1];
 
-        /* Stable placement (single-threaded placement) */
         for (int i = n - 1; i >= 0; i--) {
             int digit = (arr[i] / current_exp) % 10;
             output[--global_count[digit]] = arr[i];
         }
 
-        /* Copy back */
         for (int i = 0; i < n; i++) arr[i] = output[i];
     }
 
-    /* Tell workers to exit and release them */
     done = 1;
-    barrier_wait(); /* wake workers to see 'done' and break */
+    barrier_wait();
 
     for (int t = 0; t < THREADS; t++)
         pthread_join(threads[t], NULL);
@@ -262,7 +174,6 @@ static void radix_sort_parallel(int *arr, int n) {
     pthread_mutex_destroy(&lock);
     pthread_cond_destroy(&cond);
 
-    /* Restore negatives */
     if (min < 0)
         for (int i = 0; i < n; i++) arr[i] += min;
 }
@@ -290,33 +201,6 @@ static int *read_input(const char *filename, int *n) {
     return arr;
 }
 
-/* ---------- NEW: load sequential time from seq_output.txt ---------- */
-// ADDED: looks up a dataset name in seq_output.txt (same folder) and returns its time.
-// Format per line: "<filename> <time>" e.g. "input_small_100.txt 0.000008"
-static int load_seq_time_from_file(const char *dataset_name, double *out_time) {
-    FILE *f = fopen("seq_output.txt", "r");
-    if (!f) {
-        // If the file doesn't exist, just say "not found".
-        return 0;
-    }
-
-    char name[256];
-    double t;
-    int found = 0;
-
-    // Read lines: each scanf tries to get "<string> <double>"
-    while (fscanf(f, "%255s %lf", name, &t) == 2) {
-        if (strcmp(name, dataset_name) == 0) {
-            *out_time = t;
-            found = 1;
-            break;
-        }
-    }
-
-    fclose(f);
-    return found; // 1 if found, 0 otherwise
-}
-
 /* ---------- One dataset run (prints + logs) ---------- */
 static void run_dataset(FILE *log, const char *filename) {
     printf("\n[Dataset: %s]\n", filename);
@@ -328,21 +212,15 @@ static void run_dataset(FILE *log, const char *filename) {
         return;
     }
 
-    /* Sequential timing: now prefer reading from seq_output.txt */
-    double seq_time;
-    if (!load_seq_time_from_file(filename, &seq_time)) { // ADDED: file-based lookup
-        // Fallback if the dataset isn't in seq_output.txt:
-        seq_time = time_sequential_radix(arr, n);        // still have a correct value
-    }
+    /* ADDED: use hard-coded sequential time */
+    double seq_time = get_precomputed_seq_time(filename);
 
-    /* Parallel timing (with adaptive early-out for tiny n) */
     struct timespec t1, t2;
     clock_gettime(CLOCK_MONOTONIC, &t1);
     radix_sort_parallel(arr, n);
     clock_gettime(CLOCK_MONOTONIC, &t2);
     double par_time = (t2.tv_sec - t1.tv_sec) + (t2.tv_nsec - t1.tv_nsec) / 1e9;
 
-    /* Output (avoid printing huge arrays) */
     if (n <= 100) {
         printf("Sorted Output:\n");
         for (int i = 0; i < n; i++)
@@ -351,17 +229,15 @@ static void run_dataset(FILE *log, const char *filename) {
         printf("Sorted %d integers.\n", n);
     }
 
-    /* CLI metrics */
     double Sx = (par_time > 0.0) ? (seq_time / par_time) : 0.0;
     double E  = (THREADS > 0) ? (Sx / THREADS) : 0.0;
     double alpha = (THREADS > 1) ? ((Sx - 1.0) / (THREADS - 1.0)) : 0.0;
 
-    printf("Sequential time (from file or fallback): %.6f s\n", seq_time);
-    printf("Parallel time:                           %.6f s\n", par_time);
-    printf("Speedup:                                 %.2fx\n", Sx);
-    printf("Efficiency:                              %.2f\n", E);
+    printf("Sequential time (hardcoded): %.6f s\n", seq_time);
+    printf("Parallel time:               %.6f s\n", par_time);
+    printf("Speedup:                     %.2fx\n", Sx);
+    printf("Efficiency:                  %.2f\n", E);
 
-    /* Log file */
     fprintf(log, "==== Dataset: %s ====\n", filename);
     fprintf(log, "N: %d\n", n);
     fprintf(log, "Sequential time: %.6f s\n", seq_time);
@@ -392,19 +268,14 @@ int main(void) {
     const char *classic[] = {"input_small.txt", "input_medium.txt", "input_large.txt"};
     for (int i = 0; i < 3; ++i) run_dataset(log, classic[i]);
 
-    /* 2) Scaled datasets: input_<label>_<size>.txt */
-    const char *labels[] = {"small", "medium", "large"};
-    const long sizes[]   = {100, 1000, 10000, 100000, 1000000, 10000000};
-    const int  L = (int)(sizeof(labels)/sizeof(labels[0]));
-    const int  S = (int)(sizeof(sizes)/sizeof(sizes[0]));
-
-    char filename[256];
-    for (int li = 0; li < L; ++li) {
-        for (int si = 0; si < S; ++si) {
-            snprintf(filename, sizeof(filename), "input_%s_%ld.txt", labels[li], sizes[si]);
-            run_dataset(log, filename);
-        }
-    }
+    /* 2) Mixed datasets */
+    const char *mixed[] = {
+        "input_mixed_10000.txt",
+        "input_mixed_100000.txt",
+        "input_mixed_1000000.txt"
+    };
+    for (int i = 0; i < 3; ++i)
+        run_dataset(log, mixed[i]);
 
     fclose(log);
     printf("\nFull report saved to performance_results_pthread.txt\n");
