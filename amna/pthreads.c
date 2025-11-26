@@ -7,6 +7,10 @@
 #include <limits.h>
 #include <math.h>
 
+
+
+//WITH SEQUENTIAL OUTPUT FROM WINDOWS OS
+
 #define THREADS 4   //each run the same fn on different parts of array
 // barriers: all threads need to reach it before any can proceed - sync point
 // race cond: to avoid them, e used shared variables using mutexes or barriers (mutexes used inside barriers) 
