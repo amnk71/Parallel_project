@@ -29,25 +29,11 @@ void counting_sort(int *arr, int n, int exp) {                //Sort array eleme
 
     int count[10] = {0};                                      //Array to count occurrences of each digit (0–9) initialized to zero.
 
-
-    //Parallel local histograms for counting digits
-    #pragma omp parallel                                                  //Starting a parallel region where multiple threads run this block.
-    {
-        int local_count[10] = {0};                                       //Each thread has its own digit counter array (0–9), initialized to 0.
-
-        #pragma omp for nowait                                           //Splitting this loop across threads; no implicit barrier at the end.
-        for (int i = 0; i < n; i++) {                                    //Each thread processes a subset of the array elements.
-            int digit = (arr[i] / exp) % 10;                             //Getting the digit at the current place value (exp) from arr[i].
-            local_count[digit]++;                                        //Increasing this thread’s count for that digit.
-        }
-
-        //Merging local histograms into the global count safely.
-        #pragma omp critical                                             //Only one thread at a time can execute this block.
-        {
-            for (int d = 0; d < 10; d++) {                               //It go through all digit positions from 0 to 9.
-                count[d] += local_count[d];                              //Adding this thread’s local counts into the shared global count array.
-            }
-        }
+    // ---------- PARALLEL COUNTING USING REDUCTION ----------
+    #pragma omp parallel for reduction(+:count[:10])
+    for (int i = 0; i < n; i++) {
+        int digit = (arr[i] / exp) % 10;
+        count[digit]++;
     }
 
 
@@ -186,7 +172,7 @@ int main(int argc, char *argv[]) {
 
     // === Performance Profiling ===
     // Manually enter the sequential time from your sequential program
-    double T_seq = 0.214000;   //Must Change every time.
+    double T_seq = 0.109000;   //Must Change every time. input_small = 0.008000 , input_medium = 0.011000 , input_large = 0.014000 , mixed1 = 0.001000 , mixed2 = 0.020000 , mixed3 = 0.109000
     double T_par = time_taken;
 
     // Compute speedup: S = T_seq / T_par
@@ -207,8 +193,8 @@ int main(int argc, char *argv[]) {
     printf("Efficiency      (E = S / P): %.4f\n", efficiency);
     printf("\n=================================\n\n");
 
-        // === Save output to file (APPEND mode) ===
-    FILE *out = fopen("OpenMP_output_log.txt", "a");
+    // === Save output to file ===
+    FILE *out = fopen("OpenMP_output_log2.txt", "a");
     if (!out) {
         perror("fopen");
     } else {
