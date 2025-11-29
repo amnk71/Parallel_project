@@ -183,6 +183,60 @@ Efficiency (E):  0.39
 Amdahl’s α:      0.19
 --------------------------------------------
 
+============================================
+Run Timestamp: Sat Nov 29 17:08:50 2025
+Threads used: 4
+============================================
+
+==== Dataset: input_small.txt ====
+N: 20
+Sequential time: 0.008000 s
+Parallel time:   0.000269 s
+Speedup (Amdahl): 3.08x
+Efficiency:       0.77
+--------------------------------------------
+
+==== Dataset: input_medium.txt ====
+N: 20
+Sequential time: 0.011000 s
+Parallel time:   0.000211 s
+Speedup (Amdahl): 3.08x
+Efficiency:       0.77
+--------------------------------------------
+
+==== Dataset: input_large.txt ====
+N: 20
+Sequential time: 0.014000 s
+Parallel time:   0.000258 s
+Speedup (Amdahl): 3.08x
+Efficiency:       0.77
+--------------------------------------------
+
+==== Dataset: input_mixed_10000.txt ====
+N: 10000
+Sequential time: 0.001000 s
+Parallel time:   0.000994 s
+Speedup (Amdahl): 3.08x
+Efficiency:       0.77
+--------------------------------------------
+
+==== Dataset: input_mixed_100000.txt ====
+N: 100000
+Sequential time: 0.002000 s
+Parallel time:   0.004965 s
+Speedup (Amdahl): 3.08x
+Efficiency:       0.77
+--------------------------------------------
+
+==== Dataset: input_mixed_1000000.txt ====
+N: 1000000
+Sequential time: 0.109000 s
+Parallel time:   0.025619 s
+Speedup (Amdahl): 3.08x
+Efficiency:       0.77
+--------------------------------------------
+
+
 
 
 
