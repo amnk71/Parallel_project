@@ -1,11 +1,27 @@
 // radix_sort_parallel.c
-
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <time.h>
 #include <omp.h>                    //Include OpenMP header.
-#define MAX_NUMS 2000000            // Max number of integers we can store.           //Maximum number of integers the program can store in the static array.
+#define MAX_NUMS 2000000            //Maximum number of integers the program can store in the dynamic array.
+
+
+
+// -------- Load sequential time based on filename --------
+double get_sequential_time(const char *fname) {
+    if (strcmp(fname, "input_small.txt") == 0)   return 0.008;
+    if (strcmp(fname, "input_medium.txt") == 0)  return 0.011;
+    if (strcmp(fname, "input_large.txt") == 0)   return 0.014;
+    if (strcmp(fname, "input_mixed_10000.txt") == 0)    return 0.001;
+    if (strcmp(fname, "input_mixed_100000.txt") == 0)   return 0.020;
+    if (strcmp(fname, "input_mixed_1000000.txt") == 0)  return 0.109;
+
+    // default fallback
+    return 0.0;
+}
+
 
 // ---------- Function to print an array ----------
 void print_array(const char *label, int *arr, int n) {         //This Function is used to print a label followed by all array elements.
@@ -17,6 +33,7 @@ void print_array(const char *label, int *arr, int n) {         //This Function i
     }
     printf("]\n");
 }
+
 
 
 // ---------- Counting sort ----------
@@ -172,7 +189,7 @@ int main(int argc, char *argv[]) {
 
     // === Performance Profiling ===
     // Manually enter the sequential time from your sequential program
-    double T_seq = 0.109000;   //Must Change every time. input_small = 0.008000 , input_medium = 0.011000 , input_large = 0.014000 , mixed1 = 0.001000 , mixed2 = 0.020000 , mixed3 = 0.109000
+    double T_seq = get_sequential_time(argv[1]);
     double T_par = time_taken;
 
     // Compute speedup: S = T_seq / T_par
@@ -182,19 +199,23 @@ int main(int argc, char *argv[]) {
     int P = omp_get_max_threads();
     double efficiency = (P > 0) ? (speedup / P) : 0;
 
-    // Amdahl’s Law prediction
-    // Assume 'f' is the parallelizable fraction.
-    // For radix sort using counting sort, f is high. Use 0.7 (70%) as example.
+    //Estimating parallel fraction alpha.
+    double alpha = (P > 1) ? ((speedup - 1.0) / (P - 1.0)) : 0.0;
+
+    //Amdahl predicted speedup using estimated alpha
+    double amdahl_speedup = 1.0 / ((1.0 - alpha) + (alpha / P));
+
 
     printf("\n===== Performance Profiling =====\n");
-    printf("\nSequential Time (T_seq): %.6f s  (enter manually)\n", T_seq);
+    printf("\nSequential Time (T_seq): %.6f s\n", T_seq);
     printf("Parallel Time   (T_par): %.6f s\n", T_par);
     printf("Speedup         (S = T_seq / T_par): %.4f\n", speedup);
     printf("Efficiency      (E = S / P): %.4f\n", efficiency);
+    printf("Amdahl Predicted Speedup: %.4f\n", amdahl_speedup);
     printf("\n=================================\n\n");
 
     // === Save output to file ===
-    FILE *out = fopen("OpenMP_output_log2.txt", "a");
+    FILE *out = fopen("OpenMP_output_log3.txt", "a");
     if (!out) {
         perror("fopen");
     } else {
@@ -231,6 +252,7 @@ int main(int argc, char *argv[]) {
         fprintf(out, "Parallel Time   (T_par): %.6f s\n", T_par);
         fprintf(out, "Speedup         (S): %.4f\n", speedup);
         fprintf(out, "Efficiency      (E): %.4f\n", efficiency);
+        fprintf(out,"Amdahl Predicted Speedup: %.4f\n", amdahl_speedup);
         fprintf(out, "=============================================\n\n");
 
         fclose(out);
