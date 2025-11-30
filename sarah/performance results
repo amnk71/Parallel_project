@@ -1,0 +1,97 @@
+===== input_small.txt =====
+Total numbers read: 20
+Sequential radix sort time:      0.000035 seconds
+Multiprocessing radix sort time: 0.167631 seconds
+Processes used: 8
+Both versions produce the SAME result.
+Speedup  (T_seq / T_par):        0.000
+Efficiency (speedup / p):        0.000
+
+
+===== input_small.txt =====
+Total numbers read: 20
+Sequential radix sort time:      0.000035 seconds
+Multiprocessing radix sort time: 0.167631 seconds
+Processes used: 8
+Both versions produce the SAME result.
+Speedup  (T_seq / T_par):        0.000
+Efficiency (speedup / p):        0.000
+
+Sequential radix sort time:      0.000035 seconds
+Multiprocessing radix sort time: 0.167631 seconds
+Processes used: 8
+Both versions produce the SAME result.
+Speedup  (T_seq / T_par):        0.000
+Efficiency (speedup / p):        0.000
+
+Processes used: 8
+Both versions produce the SAME result.
+Speedup  (T_seq / T_par):        0.000
+Efficiency (speedup / p):        0.000
+
+Speedup  (T_seq / T_par):        0.000
+Efficiency (speedup / p):        0.000
+
+Efficiency (speedup / p):        0.000
+
+
+===== input_medium.txt =====
+Total numbers read: 20
+===== input_medium.txt =====
+Total numbers read: 20
+Total numbers read: 20
+Sequential radix sort time:      0.000043 seconds
+Multiprocessing radix sort time: 0.147942 seconds
+Multiprocessing radix sort time: 0.147942 seconds
+Processes used: 8
+Processes used: 8
+Both versions produce the SAME result.
+Both versions produce the SAME result.
+Speedup  (T_seq / T_par):        0.000
+Efficiency (speedup / p):        0.000
+Speedup  (T_seq / T_par):        0.000
+Efficiency (speedup / p):        0.000
+
+===== input_large.txt =====
+Efficiency (speedup / p):        0.000
+
+===== input_large.txt =====
+
+===== input_large.txt =====
+===== input_large.txt =====
+Total numbers read: 20
+Sequential radix sort time:      0.000058 seconds
+Multiprocessing radix sort time: 0.142266 seconds
+Processes used: 8
+Both versions produce the SAME result.
+Speedup  (T_seq / T_par):        0.000
+Efficiency (speedup / p):        0.000
+
+===== input_mixed_10000.txt =====
+Total numbers read: 10000
+Sequential radix sort time:      0.022269 seconds
+Multiprocessing radix sort time: 0.164151 seconds
+Multiprocessing radix sort time: 0.164151 seconds
+Processes used: 8
+Both versions produce the SAME result.
+Speedup  (T_seq / T_par):        0.136
+Efficiency (speedup / p):        0.017
+
+===== input_mixed_100000.txt =====
+===== input_mixed_100000.txt =====
+Total numbers read: 100000
+Sequential radix sort time:      0.277639 seconds
+Multiprocessing radix sort time: 0.268558 seconds
+Processes used: 8
+Both versions produce the SAME result.
+Speedup  (T_seq / T_par):        1.034
+Efficiency (speedup / p):        0.129
+
+===== input_mixed_1000000.txt =====
+Total numbers read: 1000000
+Sequential radix sort time:      3.754593 seconds
+Multiprocessing radix sort time: 1.293851 seconds
+Processes used: 8
+Both versions produce the SAME result.
+Speedup  (T_seq / T_par):        2.902
+Efficiency (speedup / p):        0.363
